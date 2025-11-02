@@ -1,0 +1,21 @@
+{
+  "name": "Digital Learning Platform Nabha",
+  "short_name": "Learn Nabha",
+  "description": "A digital learning platform for rural school students in Nabha, optimized for offline use.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "icons": [
+    {
+      "src": "/logo192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/logo512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
+}

@@ -2,6 +2,8 @@
 
 import React, { useState } from "react";
 import axios from "axios";
+import { v4 as uuidv4 } from "uuid";
+import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -33,44 +35,55 @@ function AddNewCourseDialog({ children }) {
   const [message, setMessage] = useState("");
   const [generatedCourse, setGeneratedCourse] = useState(null);
 
+  const router = useRouter();
+
   const onGenerate = async () => {
-    console.log(formData);
     setLoading(true);
     setMessage("");
     setGeneratedCourse(null);
+
+    const courseId = uuidv4();
+
     try {
-      // normalize payload keys to what the API expects
       const payload = {
-        name: formData.name,
-        description: formData.description,
+        name: formData.name.trim(),
+        description: formData.description.trim(),
         noOfChapters: Number(formData.chapters) || 0,
         includeVideo: Boolean(formData.includeVideo),
-        level: formData.difficulty || formData.level || null,
-        category: formData.category,
+        level: formData.difficulty || null,
+        category: formData.category.trim(),
+        courseId,
       };
 
       const result = await axios.post("/api/generate-course-layout", payload);
-      // prefer returned created row, then course, then raw data
-      const created = result?.data?.created || result?.data?.course || result?.data;
+
+      const created =
+        result?.data?.created || result?.data?.course || result?.data;
+
       setGeneratedCourse(created);
-      setMessage("Course generated and saved.");
+      setMessage("✅ Course generated and saved successfully!");
+
+      router.push(`/workspace/edit-course/${result.data?.courseId || courseId}`);
     } catch (err) {
-      console.error('Generate error', err);
-      // capture server response body if available for debugging
-      const serverDetails = err?.response?.data || err?.message || String(err);
-      setMessage(typeof serverDetails === 'string' ? serverDetails : JSON.stringify(serverDetails, null, 2));
+      console.error("Generate error:", err);
+      const serverDetails =
+        err?.response?.data || err?.message || String(err);
+      setMessage(
+        typeof serverDetails === "string"
+          ? serverDetails
+          : JSON.stringify(serverDetails, null, 2)
+      );
       setGeneratedCourse(err?.response?.data || null);
     } finally {
       setLoading(false);
     }
-
   };
 
   return (
     <Dialog>
       <DialogTrigger asChild>{children}</DialogTrigger>
 
-      <DialogContent className="max-w-lg w-full rounded-xl p-3 space-y-3 shadow-lg border border-gray-100 bg-gradient-to-b from-white via-gray-50 to-gray-100">
+      <DialogContent className="max-w-lg w-full rounded-xl p-4 space-y-4 shadow-lg border border-gray-100 bg-gradient-to-b from-white via-gray-50 to-gray-100">
         {/* Header */}
         <DialogHeader className="text-center">
           <DialogTitle className="text-lg font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 bg-clip-text text-transparent">
@@ -81,7 +94,7 @@ function AddNewCourseDialog({ children }) {
           </DialogDescription>
         </DialogHeader>
 
-        {/* Form Fields */}
+        {/* Form */}
         <div className="space-y-3">
           {/* Course Name */}
           <div>
@@ -94,7 +107,7 @@ function AddNewCourseDialog({ children }) {
                 setFormData({ ...formData, name: e.target.value })
               }
               placeholder="Enter course name"
-              className="mt-1 border-gray-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-300 transition-all text-xs"
+              className="mt-1 text-xs"
             />
           </div>
 
@@ -110,7 +123,7 @@ function AddNewCourseDialog({ children }) {
               }
               placeholder="Describe your course"
               rows={2}
-              className="mt-1 p-1 w-full border rounded-md border-gray-300 focus:outline-none focus:ring-1 focus:ring-indigo-300 resize-none transition-all text-xs"
+              className="mt-1 w-full border rounded-md border-gray-300 p-1 focus:ring-1 focus:ring-indigo-300 text-xs resize-none"
             />
           </div>
 
@@ -127,7 +140,7 @@ function AddNewCourseDialog({ children }) {
                 setFormData({ ...formData, chapters: e.target.value })
               }
               placeholder="No. of chapters"
-              className="mt-1 border-gray-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-300 transition-all text-xs"
+              className="mt-1 text-xs"
             />
           </div>
 
@@ -144,7 +157,7 @@ function AddNewCourseDialog({ children }) {
                   includeVideo: !formData.includeVideo,
                 })
               }
-              className={`px-2 py-1 rounded-full font-medium transition-all shadow-sm text-xs ${
+              className={`px-2 py-1 rounded-full text-xs font-medium transition-all shadow-sm ${
                 formData.includeVideo
                   ? "bg-indigo-500 text-white shadow-indigo-200 hover:bg-indigo-600"
                   : "bg-gray-200 text-gray-700 hover:bg-gray-300"
@@ -164,7 +177,7 @@ function AddNewCourseDialog({ children }) {
                 setFormData({ ...formData, difficulty: value })
               }
             >
-              <SelectTrigger className="w-full mt-1 border-gray-300 focus:ring-1 focus:ring-indigo-300 text-xs">
+              <SelectTrigger className="w-full mt-1 text-xs">
                 <SelectValue placeholder="Select difficulty" />
               </SelectTrigger>
               <SelectContent>
@@ -180,14 +193,21 @@ function AddNewCourseDialog({ children }) {
             <label className="text-xs font-medium text-gray-700">
               Category
             </label>
-            <Input
-              value={formData.category}
-              onChange={(e) =>
-                setFormData({ ...formData, category: e.target.value })
+            <Select
+              onValueChange={(value) =>
+                setFormData({ ...formData, category: value })
               }
-              placeholder="e.g., Web Dev, AI, Design"
-              className="mt-1 border-gray-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-300 transition-all text-xs"
-            />
+            >
+              <SelectTrigger className="w-full mt-1 text-xs">
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Web Dev">Web Dev</SelectItem>
+                <SelectItem value="AI">AI</SelectItem>
+                <SelectItem value="Design">Design</SelectItem>
+                <SelectItem value="Digital Literacy">Digital Literacy</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Generate Button */}
@@ -205,7 +225,7 @@ function AddNewCourseDialog({ children }) {
             </Button>
 
             {message && (
-              <p className="text-center mt-1 text-xs text-gray-700 animate-pulse">
+              <p className="text-center mt-2 text-xs text-gray-700 animate-pulse">
                 {message}
               </p>
             )}
@@ -213,12 +233,12 @@ function AddNewCourseDialog({ children }) {
 
           {/* Display Generated Course JSON */}
           {generatedCourse && (
-            <div className="bg-gray-100 border border-gray-200 rounded-lg p-2 mt-2 text-xs overflow-auto max-h-56">
+            <div className="bg-gray-100 border border-gray-200 rounded-lg p-2 mt-3 text-xs overflow-auto max-h-56">
               <pre className="whitespace-pre-wrap break-words">
                 {JSON.stringify(generatedCourse, null, 2)}
               </pre>
               <Button
-                className="w-full mt-1 text-xs"
+                className="w-full mt-2 text-xs"
                 variant="outline"
                 onClick={() =>
                   navigator.clipboard.writeText(
@@ -229,7 +249,7 @@ function AddNewCourseDialog({ children }) {
                 Copy JSON
               </Button>
             </div>
-          )}
+          )}  
         </div>
       </DialogContent>
     </Dialog>

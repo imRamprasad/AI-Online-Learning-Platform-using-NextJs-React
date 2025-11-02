@@ -1,5 +1,4 @@
-import { boolean, json } from "drizzle-orm/gel-core";
-import { integer, pgTable, varchar } from "drizzle-orm/pg-core";
+import { boolean, json, integer, pgTable, varchar } from "drizzle-orm/pg-core";
 
 export const usersTable = pgTable("users", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
@@ -18,5 +17,26 @@ export const coursesTable = pgTable("courses", {
   level: varchar({ length: 500 }).notNull(),
   category: varchar({ length: 500 }),
   courseJson: json(),
-  userEmail: varchar('userEmail').references(() => usersTable.email),
+  bannerImageURL: varchar({ length: 2048 }).default(""),
+  coursesContent: json().default({}),
+  userEmail: varchar("userEmail").references(() => usersTable.email),
+});
+
+export const enrollmentsTable = pgTable("enrollments", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  userEmail: varchar("userEmail").references(() => usersTable.email),
+  courseId: varchar("courseId").references(() => coursesTable.cid),
+});
+
+// ✅ Fixed enrollCourseTable
+export const enrollCourseTable = pgTable("enrollCourse", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+
+  // ✅ Correct reference to course cid
+  cid: varchar("cid").references(() => coursesTable.cid).notNull(),
+
+  // ✅ Reference user email from usersTable
+  userEmail: varchar("userEmail").references(() => usersTable.email).notNull(),
+
+  completedChapters: json("completedChapters").default({}),
 });

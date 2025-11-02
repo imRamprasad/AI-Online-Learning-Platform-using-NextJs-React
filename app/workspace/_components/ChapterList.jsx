@@ -10,14 +10,12 @@ import CourseCard from "./CourseCard"; // ✅ Make sure you have this component
 
 function CourseList() {
   const [courseList, setCourseList] = useState([]);
-  const [enrolledCids, setEnrolledCids] = useState(new Set());
   const { user } = useUser();
 
   // ✅ Fetch all courses when user is available
   useEffect(() => {
     if (user) {
       GetCourseList();
-      getEnrolledCids();
     }
   }, [user]);
 
@@ -40,18 +38,6 @@ function CourseList() {
       console.log("✅ Course added:", result.data);
     } catch (error) {
       console.error("❌ Error adding course:", error);
-    }
-  };
-
-  // ✅ Fetch enrolled course IDs for current user
-  const getEnrolledCids = async () => {
-    try {
-      const res = await axios.get('/api/enroll-course');
-      const enrolled = res.data || [];
-      const cids = new Set(enrolled.map(e => e.courses?.cid).filter(Boolean));
-      setEnrolledCids(cids);
-    } catch (err) {
-      console.error('❌ Error fetching enrolled courses:', err);
     }
   };
 
@@ -82,18 +68,7 @@ function CourseList() {
           {/* Course Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {courseList.map((course, index) => (
-              <CourseCard
-                key={index}
-                course={course}
-                isEnrolled={enrolledCids.has(course?.cid)}
-                onEnrollSuccess={(cid) => {
-                  setEnrolledCids(prev => {
-                    const next = new Set(prev);
-                    next.add(cid);
-                    return next;
-                  });
-                }}
-              />
+              <CourseCard key={index} course={course} />
             ))}
           </div>
 
