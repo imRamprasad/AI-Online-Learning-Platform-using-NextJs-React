@@ -7,7 +7,7 @@ import { currentUser } from "@clerk/nextjs/server";
 // GET: Fetch course details
 export async function GET(req, { params }) {
   try {
-    const { courseId } = params;
+    const { courseId } = await params;
     const user = await currentUser();
 
     if (!user) {
@@ -53,7 +53,7 @@ export async function GET(req, { params }) {
 
 export async function PUT(req, { params }) {
   try {
-    const { courseId } = params;
+    const { courseId } = await params;
     const user = await currentUser();
     const { name, description, level, category } = await req.json();
 
