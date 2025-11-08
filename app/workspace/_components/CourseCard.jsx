@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import axios from "axios";
@@ -14,24 +14,24 @@ function CourseCard({ course, isEnrolled: isEnrolledProp = false, onEnrollSucces
   const [courseProgress, setCourseProgress] = useState(0);
   const [progressLoading, setProgressLoading] = useState(true);
 
+  const effectiveCourse = course?.coursesTable || course;
+
   // Keep internal state in sync with parent-provided prop
   useEffect(() => {
     setIsEnrolled(Boolean(isEnrolledProp));
   }, [isEnrolledProp]);
 
-  // Fetch this user's enrollment entry to determine progress for this course
-  useEffect(() => {
-    let mounted = true;
-    const fetchProgress = async () => {
+    const refreshProgress = useCallback(async () => {
+      let mounted = true;
       try {
         setProgressLoading(true);
         const res = await axios.get('/api/enroll-course');
         const enrolled = res.data || [];
-        const entry = enrolled.find(e => e.courses?.cid === course?.cid || e.cid === course?.cid);
+        const entry = enrolled.find(e => e.courses?.cid === effectiveCourse?.cid || e.cid === effectiveCourse?.cid);
         if (!mounted) return;
         if (entry) {
           const completed = entry.completedChapters ? Object.values(entry.completedChapters).filter(Boolean).length : 0;
-          const total = course?.numberOfChapters || (course?.courseJson?.noOfChapters) || (course?.courseJson?.chapters?.length) || 0;
+          const total = effectiveCourse?.numberOfChapters || (effectiveCourse?.courseJson?.noOfChapters) || (effectiveCourse?.courseJson?.chapters?.length) || 0;
           const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
           setCourseProgress(pct);
         } else {
@@ -42,17 +42,18 @@ function CourseCard({ course, isEnrolled: isEnrolledProp = false, onEnrollSucces
       } finally {
         if (mounted) setProgressLoading(false);
       }
-    };
-    fetchProgress();
-    return () => { mounted = false; };
-  }, [course, isEnrolled]);
-
+    }, [course]);
+  
+    // Fetch this user's enrollment entry to determine progress for this course
+    useEffect(() => {
+      refreshProgress();
+    }, [course, isEnrolled, refreshProgress]);
   // ✅ Enroll Course Handler
   const onEnrollCourse = async () => {
     try {
       setLoading(true);
       const result = await axios.post("/api/enroll-course", {
-        courseId: course?.cid,
+        courseId: effectiveCourse?.cid,
       });
       
       if (result.data.success) {
@@ -60,8 +61,7 @@ function CourseCard({ course, isEnrolled: isEnrolledProp = false, onEnrollSucces
         setIsEnrolled(true);
         // Inform parent so CourseList can update its enrolled set without full reload
         if (typeof onEnrollSuccess === 'function') onEnrollSuccess(course?.cid);
-        // Refresh the enrolled courses list
-        if (typeof refreshEnrolledCoursesRef === 'function') {
+                if (typeof refreshEnrolledCoursesRef === 'function') {
           refreshEnrolledCoursesRef();
         }
         // start with zero progress (will be updated if they click Start)
@@ -78,15 +78,15 @@ function CourseCard({ course, isEnrolled: isEnrolledProp = false, onEnrollSucces
   // ✅ Parse JSON safely
   const courseJson = useMemo(() => {
     try {
-      if (!course?.courseJson) return null;
-      return typeof course.courseJson === "string"
-        ? JSON.parse(course.courseJson)
-        : course.courseJson;
+      if (!effectiveCourse?.courseJson) return null;
+      return typeof effectiveCourse.courseJson === "string"
+        ? JSON.parse(effectiveCourse.courseJson)
+        : effectiveCourse.courseJson;
     } catch (err) {
       console.error("Error parsing course JSON:", err);
       return null;
     }
-  }, [course]);
+  }, [effectiveCourse]);
 
   // ✅ Image Fix (fallback to placeholder)
 
@@ -116,9 +116,7 @@ function CourseCard({ course, isEnrolled: isEnrolledProp = false, onEnrollSucces
       await axios.patch('/api/enroll-course', { courseId: course?.cid, completedChapters: updated });
 
       // update UI
-      const total = course?.numberOfChapters || (course?.courseJson?.noOfChapters) || (course?.courseJson?.chapters?.length) || 0;
-      const pct = total > 0 ? Math.round((Object.values(updated).filter(Boolean).length / total) * 100) : 0;
-      setCourseProgress(pct);
+      refreshProgress();
       toast.success('Course started — progress updated');
       // Refresh the enrolled courses list to update progress
       if (typeof refreshEnrolledCoursesRef === 'function') {
@@ -133,20 +131,19 @@ function CourseCard({ course, isEnrolled: isEnrolledProp = false, onEnrollSucces
   };
 
   const bannerSrc =
-    course?.bannerImageURL ||
+    effectiveCourse?.bannerImageURL ||
     courseJson?.bannerImageURL ||
-    `https://via.placeholder.com/400x200?text=${encodeURIComponent(course?.name || 'Course')}`;
-  const isExternalBanner = /^https?:\/\//i.test(bannerSrc);
+        `https://placehold.co/400x200?text=${encodeURIComponent(effectiveCourse?.name || 'Course')}`;  const isExternalBanner = /^https?:\/\//i.test(bannerSrc);
 
   // A course may store generated content in different fields depending on the API
   // - `courseContent` (legacy)
   // - `coursesContent` (used by generate-course-content)
   // - `courseJson.chapters` (if layout generation included chapters)
   const hasCourseContent = Boolean(
-    (course?.courseContent && (Array.isArray(course.courseContent) ? course.courseContent.length > 0 : Object.keys(course.courseContent).length > 0)) ||
-    (course?.coursesContent && (Array.isArray(course.coursesContent) ? course.coursesContent.length > 0 : Object.keys(course.coursesContent).length > 0)) ||
+    (effectiveCourse?.courseContent && (Array.isArray(effectiveCourse.courseContent) ? effectiveCourse.courseContent.length > 0 : Object.keys(effectiveCourse.courseContent).length > 0)) ||
+    (effectiveCourse?.coursesContent && (Array.isArray(effectiveCourse.coursesContent) ? effectiveCourse.coursesContent.length > 0 : Object.keys(effectiveCourse.coursesContent).length > 0)) ||
     (courseJson?.chapters && Array.isArray(courseJson.chapters) && courseJson.chapters.length > 0) ||
-    (course?.courseJson && course.courseJson.chapters && course.courseJson.chapters.length > 0)
+    (effectiveCourse?.courseJson && effectiveCourse.courseJson.chapters && effectiveCourse.courseJson.chapters.length > 0)
   );
 
   return (
@@ -155,7 +152,7 @@ function CourseCard({ course, isEnrolled: isEnrolledProp = false, onEnrollSucces
       <div className="relative w-full h-[100px] overflow-hidden">
         <Image
           src={bannerSrc}
-          alt={course?.name || courseJson?.name || "Course banner"}
+          alt={effectiveCourse?.name || courseJson?.name || "Course banner"}
           fill
           className="object-cover group-hover:scale-105 transition-transform duration-700"
           sizes="(max-width: 768px) 100vw, 280px"
@@ -168,11 +165,11 @@ function CourseCard({ course, isEnrolled: isEnrolledProp = false, onEnrollSucces
       {/* ✅ Course Info */}
       <div className="p-3 space-y-2">
         <h2 className="text-sm font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors duration-300">
-          {course?.name || courseJson?.name || "Untitled Course"}
+          {effectiveCourse?.name || courseJson?.name || "Untitled Course"}
         </h2>
 
         <p className="text-gray-600 text-xs line-clamp-2 leading-snug">
-          {course?.description ||
+          {effectiveCourse?.description ||
             courseJson?.description ||
             "No description available."}
         </p>
@@ -180,10 +177,10 @@ function CourseCard({ course, isEnrolled: isEnrolledProp = false, onEnrollSucces
         <div className="flex items-center text-xs text-gray-700 gap-2 mt-1">
           <Book size={13} className="text-indigo-500" />
           <span className="font-medium">
-            {course?.numberOfChapters || courseJson?.noOfChapters || 0} Chapters
+            {effectiveCourse?.numberOfChapters || courseJson?.noOfChapters || 0} Chapters
           </span>
           <span className="px-2 py-0.5 text-[10px] bg-indigo-50 text-indigo-600 font-medium rounded-full ml-auto">
-            {course?.level || courseJson?.level || "Beginner"}
+            {effectiveCourse?.level || courseJson?.level || "Beginner"}
           </span>
         </div>
 
@@ -213,7 +210,7 @@ function CourseCard({ course, isEnrolled: isEnrolledProp = false, onEnrollSucces
         {/* ✅ Gradient Buttons */}
         {hasCourseContent ? (
           isEnrolled ? (
-            <Link href={`/workspace/view-course/${course?.cid}`}>
+            <Link href={`/workspace/view-course/${course?.coursesTable?.cid}`}>
               <Button
                 className="relative w-full text-[11px] overflow-hidden text-white font-semibold flex items-center justify-center gap-2 py-1.5 rounded-lg shadow-md hover:shadow-lg transition-all duration-700
                 bg-gradient-to-r from-green-500 to-green-600
@@ -244,7 +241,7 @@ function CourseCard({ course, isEnrolled: isEnrolledProp = false, onEnrollSucces
             </Button>
           )
         ) : (
-          <Link href={`/workspace/edit-course/${course?.cid}`}>
+          <Link href={`/workspace/edit-course/${course?.coursesTable?.cid}`}>
             <Button
               className="relative w-full text-[11px] overflow-hidden text-white font-semibold flex items-center justify-center gap-2 py-1.5 rounded-lg shadow-md hover:shadow-lg transition-all duration-700
               bg-gradient-to-r from-gray-600 via-gray-700 to-gray-800

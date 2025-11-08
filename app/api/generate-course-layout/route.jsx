@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import { db } from "@/config/db";
 import { coursesTable } from "@/config/schema";
+import { eq } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import axios from "axios";
 
@@ -16,7 +17,7 @@ Generate a Learning Course based on the following details. Make sure to include:
 - Include Video (boolean)
 - Number of Chapters
 - Banner Image Prompt: (modern, flat-style 2D digital illustration...)
-- Chapters with Chapter Name, Duration, and Topics.
+- Chapters, where each chapter has a Chapter Name, a list of Topics, and a highly relevant YouTube video ID.
 Return only valid JSON following this schema:
 {
   "course": {
@@ -30,9 +31,8 @@ Return only valid JSON following this schema:
     "chapters": [
       {
         "chapterName": "string",
-        "duration": "string",
-        "topics": ["string"],
-        "videoUrl": "string" // URL of the video for this chapter
+        "topics": ["string", "string"],
+        "videoUrl": "string" // highly relevant and educational YouTube video URL for this chapter. Ensure it's publicly accessible and directly related to the chapter's content. If no suitable video exists, use an empty string.
       }
     ]
   }
@@ -100,17 +100,35 @@ const GenerateImage = async (ImagePrompt) => {
   }
 };
 
+// --- YouTube Accessibility Check Function ---
+async function checkYoutubeAccessibility(videoUrl) {
+  if (!videoUrl) return false;
+  const youtubeIdMatch = videoUrl.match(/(?:https?:\/\/)?(?:www\.)?(?:m\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|)([\w-]{11})(?:\S+)?/);
+  const youtubeId = youtubeIdMatch ? youtubeIdMatch[1] : null;
+
+  if (!youtubeId) return false; // No valid YouTube ID found
+
+  const youtubeEmbedUrl = `https://www.youtube.com/embed/${youtubeId}`;
+  try {
+    const response = await axios.head(youtubeEmbedUrl, { timeout: 5000 });
+    return response.status >= 200 && response.status < 300;
+  } catch (error) {
+    return false;
+  }
+}
+
 // --- POST Route Handler ---
 export async function POST(request) {
   try {
     const formData = await request.json();
+    const { courseId, courseName } = formData; // Extract courseId and courseName
     const user = await currentUser();
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY });
     const model = "gemini-2.5-flash";
 
     const contents = [
@@ -136,8 +154,13 @@ export async function POST(request) {
       parsed = { raw: text }; // fallback if Gemini gives invalid JSON
     }
 
-    const courseJsonValue =
-      parsed && typeof parsed === "object" ? parsed.course || parsed : { raw: text };
+    let courseJsonValue = parsed && typeof parsed === "object" ? parsed.course || parsed : { raw: text };
+
+    // Ensure chapters is an array, even if AI response is malformed
+    if (!courseJsonValue.chapters || !Array.isArray(courseJsonValue.chapters)) {
+      console.warn("⚠️ AI-generated courseJsonValue.chapters is missing or not an array. Initializing as empty array.");
+      courseJsonValue.chapters = [];
+    }
 
     // --- Generate Banner Image ---
     const ImagePrompt =
@@ -145,28 +168,26 @@ export async function POST(request) {
       "modern flat-style 2D digital illustration for online learning course";
     const bannerImageURL = await GenerateImage(ImagePrompt);
 
+    // --- Validate YouTube video IDs ---
+    if (courseJsonValue.chapters && Array.isArray(courseJsonValue.chapters)) {
+      courseJsonValue.chapters = await Promise.all(courseJsonValue.chapters.map(async chapter => {
+        if (chapter.videoUrl) {
+          const isAccessible = await checkYoutubeAccessibility(chapter.videoUrl);
+
+          if (!isAccessible) {
+            console.warn(`⚠️ YouTube video for chapter '${chapter.chapterName}' (URL: ${chapter.videoUrl}) is not accessible. Replacing with null.`);
+            chapter.videoUrl = null;
+          }
+        }
+        return chapter;
+      }));
+    }
+
     // --- Insert into Database ---
     const [created] = await db
-      .insert(coursesTable)
-      .values({
-        cid: uuidv4(),
-        name: courseJsonValue.name || formData.name || "Untitled Course",
-        description:
-          courseJsonValue.description ||
-          formData.description ||
-          "No description provided",
-        numberOfChapters:
-          courseJsonValue.noOfChapters || formData.numberOfChapters || 0,
-        includeVideo:
-          typeof courseJsonValue.includeVideo === "boolean"
-            ? courseJsonValue.includeVideo
-            : false,
-        level: courseJsonValue.level || formData.level || "Beginner",
-        category: courseJsonValue.category || formData.category || "General",
-        courseJson: courseJsonValue,
-        userEmail: user?.primaryEmailAddress?.emailAddress,
-        bannerImageURL: bannerImageURL || null,
-      })
+      .update(coursesTable)
+      .set({ courseJson: courseJsonValue, bannerImageURL })
+      .where(eq(coursesTable.cid, courseId))
       .returning();
 
     return NextResponse.json({ success: true, created }, { status: 201 });

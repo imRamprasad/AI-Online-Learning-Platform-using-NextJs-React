@@ -22,11 +22,20 @@ export default function RootLayout({ children }) {
   return (
     <ClerkProvider>
       <html lang="en" suppressHydrationWarning>
-        <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-          suppressHydrationWarning
-        >
-          <Provider>{children}</Provider>
+                <body>
+                            <script
+                              dangerouslySetInnerHTML={{
+                                __html: `
+                                  if (typeof window !== 'undefined') {
+                                    Object.defineProperty(window, 'ethereum', {
+                                      value: undefined,
+                                      writable: false,
+                                      configurable: false,
+                                    });
+                                  }
+                                `,
+                              }}
+                            />                  <Provider>{children}</Provider>
         </body>
       </html>
     </ClerkProvider>

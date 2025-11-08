@@ -25,8 +25,10 @@ function CourseList() {
   const GetCourseList = async () => {
     try {
       const result = await axios.get("/api/courses");
-      console.log("✅ Courses fetched:", result.data);
-      setCourseList(result.data || []);
+      const allCourses = result.data || [];
+      const filtered = allCourses.filter(course => course.cid !== 'test-cid-1');
+      console.log("✅ Courses fetched:", filtered);
+      setCourseList(filtered);
     } catch (error) {
       console.error("❌ Error fetching course list:", error);
     }
@@ -92,7 +94,9 @@ function CourseList() {
                     next.add(cid);
                     return next;
                   });
+                  getEnrolledCids(); // Re-fetch enrolled courses to update progress
                 }}
+                refreshEnrolledCoursesRef={getEnrolledCids}
               />
             ))}
           </div>

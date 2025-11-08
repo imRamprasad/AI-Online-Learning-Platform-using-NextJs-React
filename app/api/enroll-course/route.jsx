@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
 export async function POST(req) {
   try {
     const { courseId } = await req.json();
-    
+
     if (!courseId) {
       return NextResponse.json({ error: "Course ID is required" }, { status: 400 });
     }
@@ -40,7 +40,7 @@ export async function POST(req) {
       .select()
       .from(enrollCourseTable)
       .where(and(
-        eq(enrollCourseTable.userEmail, userEmail), 
+        eq(enrollCourseTable.userEmail, userEmail),
         eq(enrollCourseTable.cid, courseId)
       ));
 
@@ -55,14 +55,14 @@ export async function POST(req) {
         })
         .returning();
 
-      return NextResponse.json({ 
-        success: true, 
+      return NextResponse.json({
+        success: true,
         data: result,
         message: "Successfully enrolled in the course"
       });
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
       message: "Already Enrolled",
       data: enrollCourses[0]
@@ -86,6 +86,7 @@ export async function GET(req) {
     }
 
     const userEmail = user.primaryEmailAddress?.emailAddress;
+    console.log("GET /api/enroll-course called for user:", userEmail);
 
     // ✅ Join enrolled courses with course details
     const result = await db

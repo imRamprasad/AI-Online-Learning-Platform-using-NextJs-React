@@ -86,7 +86,7 @@ function Course() {
       {/* Hero Section with Course Banner */}
       <div className="relative h-[400px] w-full">
         <Image
-          src={course.bannerImageURL || `https://via.placeholder.com/1200x400?text=${encodeURIComponent(course.name)}`}
+          src={course.bannerImageURL || `https://placehold.co/1200x400?text=${encodeURIComponent(course.name)}`}
           alt={course.name}
           fill
           className="object-cover"

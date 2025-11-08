@@ -68,7 +68,7 @@ function EnrollCourseList() {
                   {(() => {
                     const rawSrc =
                       course?.bannerImageURL ||
-                      `https://via.placeholder.com/400x200?text=${encodeURIComponent(
+                      `https://placehold.co/400x200?text=${encodeURIComponent(
                         course?.name || 'Course Banner'
                       )}`;
                     const isExternal = /^https?:\/\//i.test(rawSrc);

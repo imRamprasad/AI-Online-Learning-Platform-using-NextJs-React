@@ -1,14 +1,14 @@
 "use server";
 import { db } from "@/config/db";
 import { coursesTable } from "@/config/schema";
-import { auth } from "@clerk/nextjs";
+import { currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 
 export async function POST(req) {
   try {
-    const { userId } = auth();
-    if (!userId) {
+    const user = await currentUser();
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -27,7 +27,7 @@ export async function POST(req) {
         category,
         numberOfChapters: 0,
         includeVideo: false,
-        userEmail: userId,
+        userEmail: user.primaryEmailAddress?.emailAddress || user.emailAddresses[0]?.emailAddress,
       })
       .returning();
 

@@ -26,6 +26,7 @@ function EditCourse() {
     try {
       setLoading(true);
       setError("");
+      console.log("Fetching course with ID:", courseId);
       const result = await axios.get(`/api/courses/${courseId}`);
       if (!result.data) {
         setError("Course not found.");
@@ -42,30 +43,40 @@ function EditCourse() {
   };
 
   const generateCourseContent = async () => {
+    if (!course) {
+      toast.error("Course data is not loaded yet. Please wait.");
+      return;
+    }
+
     try {
       setGeneratingContent(true);
-      
+
       // Generate course layout
       const layoutResponse = await axios.post("/api/generate-course-layout", {
         name: course.name,
         description: course.description,
         category: course.category,
-        level: course.level
+        level: course.level,
+        courseId: courseId // Pass courseId to the API
       });
 
-      const chapters = layoutResponse.data.chapters;
+      console.log("layoutResponse.data:", layoutResponse.data);
+      console.log("layoutResponse.data.created:", layoutResponse.data.created);
+      console.log("layoutResponse.data.created.courseJson:", layoutResponse.data.created.courseJson);
+      const chapters = layoutResponse.data.created.courseJson.chapters;
 
       // Update course with generated content
-      const updateResponse = await axios.patch(`/api/courses/${courseId}`, {
-        courseJson: {
-          course: chapters,
-          numberOfChapters: chapters.length
-        }
+      // Now generate content for each chapter
+      const contentResponse = await axios.post("/api/generate-course-content", {
+        courseJson: layoutResponse.data.created.courseJson, // Use the courseJson from layoutResponse
+        courseTitle: course.name,
+        courseId: courseId,
       });
 
-      setCourse(updateResponse.data);
+      console.log("✅ Generated course content:", contentResponse.data);
       toast.success("Course content generated successfully!");
-      router.refresh();
+      // router.refresh(); // Removed router.refresh()
+      router.push(`/workspace/view-course/${courseId}`); // Redirect to view course page
     } catch (error) {
       console.error("Failed to generate course content:", error);
       toast.error("Failed to generate course content. Please try again.");
@@ -120,10 +131,7 @@ function EditCourse() {
           {/* ✅ Chapters + Topics Section */}
           {(() => {
             try {
-              const raw = course?.courseJson;
-              const parsed =
-                typeof raw === "string" && raw ? JSON.parse(raw) : raw;
-              const courseLayout = parsed?.course ?? parsed;
+              const courseLayout = course?.courseJson; // Directly use course.courseJson
 
               return (
                 <div className="mt-8">

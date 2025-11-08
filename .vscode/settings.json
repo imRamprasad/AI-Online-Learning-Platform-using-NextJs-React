@@ -1,5 +1,6 @@
 {
     "cSpell.words": [
         "firebasestorage"
-    ]
+    ],
+    "chatgpt.openOnStartup": true
 }

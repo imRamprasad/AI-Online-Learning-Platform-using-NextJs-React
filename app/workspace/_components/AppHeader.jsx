@@ -1,10 +1,16 @@
 "use client";
 
 import { UserButton } from "@clerk/nextjs";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 
 function AppHeader({ hideSidebar = false }) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <header className="flex items-center justify-between bg-white border-b border-gray-200 px-6 py-3 shadow-md sticky top-0 z-50">
       {/* Left: Sidebar Trigger + App Title */}
@@ -20,15 +26,17 @@ function AppHeader({ hideSidebar = false }) {
         <button className="px-3 py-1.5 text-sm font-medium rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white hover:opacity-90 transition-all">
           Upgrade
         </button>
-        <UserButton
-          afterSignOutUrl="/"
-          appearance={{
-            elements: {
-              avatarBox:
-                "ring-2 ring-indigo-500 hover:ring-purple-500 transition-all",
-            },
-          }}
-        />
+        {mounted && (
+          <UserButton
+            afterSignOutUrl="/"
+            appearance={{
+              elements: {
+                avatarBox:
+                  "ring-2 ring-indigo-500 hover:ring-purple-500 transition-all",
+              },
+            }}
+          />
+        )}
       </div>
     </header>
   );

@@ -4,30 +4,36 @@ import { coursesTable, enrollCourseTable } from "@/config/schema";
 import { eq, and } from "drizzle-orm";
 import { currentUser } from "@clerk/nextjs/server";
 
-// GET: Fetch course details
 export async function GET(req, { params }) {
   try {
-    const { courseId } = params;
     const user = await currentUser();
 
     if (!user) {
-      return NextResponse.json({ error: "Unauthorized access" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const userEmail = user.primaryEmailAddress?.emailAddress;
+    const { courseId } = params;
 
-    // Get course details and enrollment status
-    const [course] = await db
+    if (!userEmail || !courseId) {
+      return NextResponse.json({ error: "Missing required parameters" }, { status: 400 });
+    }
+
+    // Fetch the course
+    const courseResult = await db
       .select()
       .from(coursesTable)
-      .where(eq(coursesTable.cid, courseId));
+      .where(eq(coursesTable.cid, courseId))
+      .limit(1);
 
-    if (!course) {
+    if (courseResult.length === 0) {
       return NextResponse.json({ error: "Course not found" }, { status: 404 });
     }
 
-    // Check if user is enrolled
-    const [enrollment] = await db
+    const course = courseResult[0];
+
+    // Check if user is enrolled in this course
+    const enrollmentResult = await db
       .select()
       .from(enrollCourseTable)
       .where(
@@ -35,48 +41,28 @@ export async function GET(req, { params }) {
           eq(enrollCourseTable.cid, courseId),
           eq(enrollCourseTable.userEmail, userEmail)
         )
-      );
+      )
+      .limit(1);
+
+    const isEnrolled = enrollmentResult.length > 0;
+    const completedChapters = isEnrolled ? enrollmentResult[0].completedChapters || {} : {};
+
+    console.log("Course being sent to client:", JSON.stringify({
+      ...course,
+      isEnrolled,
+      completedChapters
+    }, null, 2));
 
     return NextResponse.json({
       ...course,
-      isEnrolled: !!enrollment,
-      completedChapters: enrollment?.completedChapters || {},
+      isEnrolled,
+      completedChapters
     });
+
   } catch (error) {
     console.error("❌ Error fetching course:", error);
     return NextResponse.json(
       { error: "Failed to fetch course", details: error.message },
-      { status: 500 }
-    );
-  }
-}
-
-export async function PUT(req, { params }) {
-  try {
-    const { courseId } = params;
-    const user = await currentUser();
-    const { name, description, level, category } = await req.json();
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized access" }, { status: 401 });
-    }
-
-    const [updatedCourse] = await db
-      .update(coursesTable)
-      .set({
-        name,
-        description,
-        level,
-        category,
-      })
-      .where(eq(coursesTable.cid, courseId))
-      .returning();
-
-    return NextResponse.json(updatedCourse);
-  } catch (error) {
-    console.error("❌ Error updating course:", error);
-    return NextResponse.json(
-      { error: "Failed to update course", details: error.message },
       { status: 500 }
     );
   }

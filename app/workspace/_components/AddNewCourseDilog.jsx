@@ -45,17 +45,29 @@ function AddNewCourseDialog({ children }) {
     const courseId = uuidv4();
 
     try {
-      const payload = {
+      // 1. Create the initial course entry
+      const createCoursePayload = {
         name: formData.name.trim(),
         description: formData.description.trim(),
-        noOfChapters: Number(formData.chapters) || 0,
-        includeVideo: Boolean(formData.includeVideo),
         level: formData.difficulty || null,
         category: formData.category.trim(),
-        courseId,
+      };
+      const createResult = await axios.post("/api/create-course", createCoursePayload);
+      const initialCourseId = createResult.data?.data?.cid; // Assuming cid is returned
+
+      if (!initialCourseId) {
+        throw new Error("Failed to create initial course.");
+      }
+
+      // 2. Generate course layout and content using the obtained courseId
+      const generateLayoutPayload = {
+        ...createCoursePayload, // Reuse some data
+        noOfChapters: Number(formData.chapters) || 0,
+        includeVideo: Boolean(formData.includeVideo),
+        courseId: initialCourseId,
       };
 
-      const result = await axios.post("/api/generate-course-layout", payload);
+      const result = await axios.post("/api/generate-course-layout", generateLayoutPayload);
 
       const created =
         result?.data?.created || result?.data?.course || result?.data;
@@ -63,7 +75,7 @@ function AddNewCourseDialog({ children }) {
       setGeneratedCourse(created);
       setMessage("✅ Course generated and saved successfully!");
 
-      router.push(`/workspace/edit-course/${result.data?.courseId || courseId}`);
+      router.push(`/workspace/edit-course/${initialCourseId}`);
     } catch (err) {
       console.error("Generate error:", err);
       const serverDetails =
@@ -103,8 +115,8 @@ function AddNewCourseDialog({ children }) {
             </label>
             <Input
               value={formData.name}
-              onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
+              onChange={({ target: { value } }) =>
+                setFormData({ ...formData, name: value })
               }
               placeholder="Enter course name"
               className="mt-1 text-xs"
@@ -118,8 +130,8 @@ function AddNewCourseDialog({ children }) {
             </label>
             <textarea
               value={formData.description}
-              onChange={(e) =>
-                setFormData({ ...formData, description: e.target.value })
+              onChange={({ target: { value } }) =>
+                setFormData({ ...formData, description: value })
               }
               placeholder="Describe your course"
               rows={2}
@@ -136,8 +148,8 @@ function AddNewCourseDialog({ children }) {
               type="number"
               min="1"
               value={formData.chapters}
-              onChange={(e) =>
-                setFormData({ ...formData, chapters: e.target.value })
+              onChange={({ target: { value } }) =>
+                setFormData({ ...formData, chapters: value })
               }
               placeholder="No. of chapters"
               className="mt-1 text-xs"
