@@ -7,6 +7,7 @@ import LandingFeatures from "./_components/landing/LandingFeatures";
 import LandingCategories from "./_components/landing/LandingCategories";
 import LandingTeachers from "./_components/landing/LandingTeachers";
 import { Footer } from "./_components/landing/Footer";
+import LatestVideos from "./_components/youtube/LatestVideos";
 
 export default function Landing() {
   const { isSignedIn } = useUser();
@@ -71,6 +72,7 @@ export default function Landing() {
         <LandingFeatures />
         <LandingCategories />
         <LandingTeachers />
+        <LatestVideos />
         <Footer />
       </main>
     </div>

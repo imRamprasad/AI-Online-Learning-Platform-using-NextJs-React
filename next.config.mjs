@@ -29,6 +29,10 @@ const nextConfig = {
       {
         protocol: "https",
         hostname: "*.googleapis.com",
+      },
+      {
+        protocol: "https",
+        hostname: "placehold.co",
       }
     ],
     dangerouslyAllowSVG: true,

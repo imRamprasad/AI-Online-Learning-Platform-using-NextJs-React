@@ -3,8 +3,7 @@
 import React, { useState, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { AiOutlineClockCircle, AiOutlineBook } from "react-icons/ai";
-import { FaChartLine } from "react-icons/fa";
+import { Clock, Book, LineChart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -70,38 +69,13 @@ function CourseInfo({ course, mode = "edit" }) {
     }
   };
 
-  const handleGenerateContent = async () => {
-    if (!parseCourse) return alert("Invalid course data. Try again.");
-    setLoading(true);
-    setError(null);
-    setGenerated(false);
 
-    try {
-      const { data } = await axios.post("/api/generate-course-content", {
-        courseJson: parseCourse,
-        courseTitle: course?.name,
-        courseId: course?.cid,
-      });
-
-      console.log("✅ Generated course content:", data);
-      setGenerated(true);
-
-      setTimeout(() => {
-        router.push("/workspace");
-      }, 700);
-    } catch (err) {
-      console.error("❌ Error generating course content:", err);
-      setError("Failed to generate course content. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const bannerSrc = React.useMemo(() => {
     let src =
       course?.bannerImageURL ??
       parseCourse?.bannerImageURL ??
-      "/default-course-banner.jpg";
+      "/no-courses.png";
 
     if (src.startsWith("//")) src = `https:${src}`;
     const looksLikeBase64 =
@@ -244,7 +218,7 @@ function CourseInfo({ course, mode = "edit" }) {
       {/* ✅ Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm md:text-base">
         <div className="flex items-center gap-3 bg-blue-50 p-3 rounded-xl shadow-sm">
-          <AiOutlineClockCircle className="text-blue-600 text-xl" />
+          <Clock className="text-blue-600 text-xl" />
           <div>
             <h3 className="font-semibold text-gray-800">Duration</h3>
             <p className="text-gray-600">
@@ -254,7 +228,7 @@ function CourseInfo({ course, mode = "edit" }) {
         </div>
 
         <div className="flex items-center gap-3 bg-green-50 p-3 rounded-xl shadow-sm">
-          <AiOutlineBook className="text-green-600 text-xl" />
+          <Book className="text-green-600 text-xl" />
           <div>
             <h3 className="font-semibold text-gray-800">Chapters</h3>
             <p className="text-gray-600">{parseCourse.noOfChapters ?? 0}</p>
@@ -262,7 +236,7 @@ function CourseInfo({ course, mode = "edit" }) {
         </div>
 
         <div className="flex items-center gap-3 bg-red-50 p-3 rounded-xl shadow-sm">
-          <FaChartLine className="text-red-600 text-xl" />
+          <LineChart className="text-red-600 text-xl" />
           <div>
             <h3 className="font-semibold text-gray-800">Difficulty</h3>
             <p className="text-gray-600">{parseCourse.level ?? "Beginner"}</p>
@@ -272,7 +246,7 @@ function CourseInfo({ course, mode = "edit" }) {
 
       {/* ✅ Action Buttons */}
       <div className="flex justify-center gap-4">
-        {isViewMode ? (
+        {isViewMode && (
           <Link href={`/workspace/view-course/${course?.cid}`}>
             <Button 
               className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white"
@@ -281,31 +255,6 @@ function CourseInfo({ course, mode = "edit" }) {
               Continue Learning
             </Button>
           </Link>
-        ) : (
-          <Button
-            onClick={handleGenerateContent}
-            disabled={loading}
-            className={`bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-semibold px-6 py-2 rounded-full shadow-md transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:from-pink-500 hover:to-indigo-500 ${
-              loading ? "opacity-70 cursor-not-allowed" : ""
-            }`}
-          >
-            {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Generating...
-              </>
-            ) : generated ? (
-              <>
-                <Settings className="mr-2 h-4 w-4" />
-                Regenerate ✨
-              </>
-            ) : (
-              <>
-                <Settings className="mr-2 h-4 w-4" />
-                Generate Content ✨
-              </>
-            )}
-          </Button>
         )}
       </div>
 

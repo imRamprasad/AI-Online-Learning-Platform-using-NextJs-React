@@ -6,41 +6,24 @@ import { currentUser } from "@clerk/nextjs/server"; // ✅ correct import
 
 export async function GET(req) {
   try {
-    const url = new URL(req.url);
-    const courseId = url.searchParams.get("courseId");
+
     const user = await currentUser(); // ✅ must be awaited
 
-    // ✅ If no user found
     if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized access" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // ✅ If a courseId is provided — fetch single course
-    if (courseId) {
-      const result = await db
-        .select()
-        .from(coursesTable)
-        .where(eq(coursesTable.cid, courseId));
+    const userEmail = user.primaryEmailAddress?.emailAddress;
 
-      if (result.length === 0) {
-        return NextResponse.json(
-          { error: "Course not found" },
-          { status: 404 }
-        );
-      }
-
-      console.log("✅ Single course fetched:", result[0]);
-      return NextResponse.json(result[0]);
+    if (!userEmail) {
+      return NextResponse.json({ error: "User email not found" }, { status: 400 });
     }
 
-    // ✅ Fetch all courses for current user (ordered by latest)
+    // ✅ Fetch courses for the current user (ordered by latest)
     const result = await db
       .select()
       .from(coursesTable)
-      .where(eq(coursesTable.userEmail, user.primaryEmailAddress.emailAddress))
+      .where(eq(coursesTable.userEmail, userEmail))
       .orderBy(desc(coursesTable.id)); // ✅ fixed — removed the stray semicolon before .orderBy
 
     console.log("✅ User courses fetched:", result);

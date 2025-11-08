@@ -60,7 +60,7 @@ export default function GenerateCourseSteps({ setOpen }) {
       });
 
       toast.success("Course generated successfully!");
-      router.push(`/workspace/edit-course/${courseId}`);
+      router.push(`/workspace/view-course/${courseId}`);
       setOpen?.(false);
     } catch (error) {
       console.error("Generation error:", error);
@@ -89,7 +89,7 @@ export default function GenerateCourseSteps({ setOpen }) {
               <Input
                 placeholder="e.g., Complete Web Development Bootcamp"
                 value={formData.name}
-                onChange={(e) => updateField("name", e.target.value)}
+                onChange={({ target: { value } }) => updateField("name", value)}
               />
             </div>
             <div>
@@ -97,7 +97,7 @@ export default function GenerateCourseSteps({ setOpen }) {
               <Textarea
                 placeholder="What will students learn in this course?"
                 value={formData.description}
-                onChange={(e) => updateField("description", e.target.value)}
+                onChange={({ target: { value } }) => updateField("description", value)}
                 rows={4}
               />
             </div>

@@ -22,11 +22,7 @@ export const coursesTable = pgTable("courses", {
   userEmail: varchar("userEmail").references(() => usersTable.email),
 });
 
-export const enrollmentsTable = pgTable("enrollments", {
-  id: integer().primaryKey().generatedAlwaysAsIdentity(),
-  userEmail: varchar("userEmail").references(() => usersTable.email),
-  courseId: varchar("courseId").references(() => coursesTable.cid),
-});
+
 
 // ✅ Fixed enrollCourseTable
 export const enrollCourseTable = pgTable("enrollCourse", {
